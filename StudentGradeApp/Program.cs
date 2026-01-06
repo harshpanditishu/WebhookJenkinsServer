@@ -1,4 +1,6 @@
-﻿// Student Grade Calculator Console Application
+using StudentGradeApp;
+
+// Student Grade Calculator Console Application
 Console.WriteLine("=== Student Grade Calculator ===");
 Console.WriteLine();
 
@@ -13,7 +15,7 @@ for (int i = 0; i < subjects.Length; i++)
     Console.Write($"Enter marks for {subjects[i]}: ");
     string? input = Console.ReadLine();
     
-    while (!double.TryParse(input, out marks[i]) || marks[i] < 0 || marks[i] > 100)
+    while (!double.TryParse(input, out marks[i]) || !GradeCalculator.ValidateMarks(marks[i]))
     {
         Console.Write($"Invalid input. Please enter valid marks (0-100) for {subjects[i]}: ");
         input = Console.ReadLine();
@@ -23,26 +25,10 @@ for (int i = 0; i < subjects.Length; i++)
 }
 
 // Calculate percentage
-double percentage = totalMarks / subjects.Length;
+double percentage = GradeCalculator.CalculatePercentage(totalMarks, subjects.Length);
 
 // Determine grade
-string grade;
-if (percentage >= 80)
-{
-    grade = "A";
-}
-else if (percentage >= 50)
-{
-    grade = "B";
-}
-else if (percentage >= 30)
-{
-    grade = "C";
-}
-else
-{
-    grade = "F";
-}
+string grade = GradeCalculator.DetermineGrade(percentage);
 
 // Display results
 Console.WriteLine();

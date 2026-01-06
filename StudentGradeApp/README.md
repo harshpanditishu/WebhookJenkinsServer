@@ -1,6 +1,6 @@
 # Student Grade Calculator
 
-A simple console application that calculates student grades based on marks in 4 subjects.
+A simple console application that calculates student grades based on marks in 4 subjects scored out of 100
 
 ## Subjects
 - SubA

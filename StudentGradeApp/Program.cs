@@ -27,25 +27,21 @@ double percentage = totalMarks / subjects.Length;
 
 // Determine grade
 string grade;
-if (percentage >= 80 && percentage <= 99)
+if (percentage >= 80)
 {
     grade = "A";
 }
-else if (percentage >= 50 && percentage <= 79)
+else if (percentage >= 50)
 {
     grade = "B";
 }
-else if (percentage >= 30 && percentage <= 49)
+else if (percentage >= 30)
 {
     grade = "C";
 }
-else if (percentage < 30)
+else
 {
     grade = "F";
-}
-else // percentage is 100 or above
-{
-    grade = "A";
 }
 
 // Display results

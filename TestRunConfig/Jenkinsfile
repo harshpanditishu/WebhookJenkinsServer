@@ -17,67 +17,55 @@ pipeline {
         stage('Restore Dependencies') {
             steps {
                 echo 'Restoring NuGet packages...'
-                script {
-                    if (isUnix()) {
-                        sh 'dotnet restore StudentGradeApp.Tests/StudentGradeApp.Tests.csproj'
-                    } else {
-                        bat 'dotnet restore StudentGradeApp.Tests/StudentGradeApp.Tests.csproj'
-                    }
-                }
+                sh 'dotnet restore StudentGradeApp.Tests/StudentGradeApp.Tests.csproj'
             }
         }
         
         stage('Build Tests') {
             steps {
                 echo 'Building test project...'
-                script {
-                    if (isUnix()) {
-                        sh 'dotnet build StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-restore'
-                    } else {
-                        bat 'dotnet build StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-restore'
-                    }
-                }
+                sh 'dotnet build StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-restore'
             }
         }
         
         stage('Run Unit Tests') {
             steps {
-                echo 'Running unit tests...'
-                script {
-                    if (isUnix()) {
-                        sh 'dotnet test StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=TestResults.trx" --results-directory ./TestResults'
-                    } else {
-                        bat 'dotnet test StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=TestResults.trx" --results-directory ./TestResults'
-                    }
-                }
+                echo 'Running unit tests with Allure reporting...'
+                sh 'dotnet test StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-build --results-directory ./allure-results'
             }
         }
         
-        stage('Publish Test Results') {
+        stage('Generate Allure Report') {
             steps {
-                echo 'Publishing test results...'
-                // Publish MSTest/xUnit test results to Jenkins
-                mstest testResultsFile: '**/TestResults/*.trx', keepLongStdio: true
+                echo 'Generating Allure report...'
+                allure includeProperties: false, 
+                       jdk: '', 
+                       results: [[path: 'allure-results']]
             }
         }
     }
     
     post {
         always {
-            echo 'Cleaning up workspace...'
-            // Archive test results as artifacts
-            archiveArtifacts artifacts: '**/TestResults/*.trx', allowEmptyArchive: true, fingerprint: true
+            echo 'Archiving Allure results...'
+            // Archive Allure results as artifacts
+            archiveArtifacts artifacts: 'allure-results/**', allowEmptyArchive: true
+            
+            // Publish Allure report
+            allure includeProperties: false,
+                   jdk: '',
+                   results: [[path: 'allure-results']]
             
             // Clean up workspace
             cleanWs()
         }
         success {
             echo 'Pipeline completed successfully!'
-            echo 'All tests passed.'
+            echo 'All tests passed. View Allure report in Jenkins build page.'
         }
         failure {
             echo 'Pipeline failed!'
-            echo 'Check the test results for details.'
+            echo 'Check Allure report for test details.'
         }
     }
 }

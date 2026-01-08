@@ -1,0 +1,33 @@
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+
+# Test results
+**/TestResults/
+**/allure-results/
+**/allure-report/
+
+# IDE and editor files
+.vs/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+
+# CI/CD files
+Jenkinsfile*
+.github/
+
+# OS files
+.DS_Store
+Thumbs.db

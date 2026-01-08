@@ -1,0 +1,87 @@
+pipeline {
+    agent {
+        dockerfile {
+            // Build and use custom Dockerfile with cached dependencies
+            filename 'Dockerfile'
+            // Reuse Docker image between builds for speed
+            reuseNode true
+            // Mount Docker socket for Docker-in-Docker if needed
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
+    
+    triggers {
+        // Trigger build on any push to the repository
+        pollSCM('H/5 * * * *')  // Poll SCM every 5 minutes for changes
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code from repository...'
+                checkout scm
+            }
+        }
+        
+        stage('Verify Environment') {
+            steps {
+                echo 'Verifying Docker container environment...'
+                sh '''
+                    echo "=== .NET SDK Version ==="
+                    dotnet --version
+                    echo "=== Allure Version ==="
+                    allure --version
+                    echo "=== Working Directory ==="
+                    pwd
+                    ls -la
+                '''
+            }
+        }
+        
+        stage('Build Tests') {
+            steps {
+                echo 'Building test project (dependencies already cached in Docker image)...'
+                sh 'dotnet build StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release'
+            }
+        }
+        
+        stage('Run Unit Tests') {
+            steps {
+                echo 'Running unit tests with Allure reporting...'
+                sh 'dotnet test StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-build --results-directory ./allure-results'
+            }
+        }
+        
+        stage('Generate Allure Report') {
+            steps {
+                echo 'Generating Allure report...'
+                script {
+                    allure includeProperties: false, 
+                           jdk: '', 
+                           results: [[path: 'allure-results']]
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Archiving Allure results...'
+            // Archive Allure results as artifacts
+            archiveArtifacts artifacts: 'allure-results/**', allowEmptyArchive: true
+            
+            // Publish Allure report
+            allure includeProperties: false,
+                   jdk: '',
+                   results: [[path: 'allure-results']]
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+            echo 'All tests passed. View Allure report in Jenkins build page.'
+        }
+        failure {
+            echo 'Pipeline failed!'
+            echo 'Check Allure report for test details.'
+        }
+    }
+}

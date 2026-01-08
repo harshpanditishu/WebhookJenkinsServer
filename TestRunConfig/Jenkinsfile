@@ -1,0 +1,83 @@
+pipeline {
+    agent any
+    
+    triggers {
+        // Trigger build on any push to the repository
+        pollSCM('H/5 * * * *')  // Poll SCM every 5 minutes for changes
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code from repository...'
+                checkout scm
+            }
+        }
+        
+        stage('Restore Dependencies') {
+            steps {
+                echo 'Restoring NuGet packages...'
+                script {
+                    if (isUnix()) {
+                        sh 'dotnet restore StudentGradeApp.Tests/StudentGradeApp.Tests.csproj'
+                    } else {
+                        bat 'dotnet restore StudentGradeApp.Tests/StudentGradeApp.Tests.csproj'
+                    }
+                }
+            }
+        }
+        
+        stage('Build Tests') {
+            steps {
+                echo 'Building test project...'
+                script {
+                    if (isUnix()) {
+                        sh 'dotnet build StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-restore'
+                    } else {
+                        bat 'dotnet build StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-restore'
+                    }
+                }
+            }
+        }
+        
+        stage('Run Unit Tests') {
+            steps {
+                echo 'Running unit tests...'
+                script {
+                    if (isUnix()) {
+                        sh 'dotnet test StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=TestResults.trx" --results-directory ./TestResults'
+                    } else {
+                        bat 'dotnet test StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=TestResults.trx" --results-directory ./TestResults'
+                    }
+                }
+            }
+        }
+        
+        stage('Publish Test Results') {
+            steps {
+                echo 'Publishing test results...'
+                // Publish MSTest/xUnit test results to Jenkins
+                mstest testResultsFile: '**/TestResults/*.trx', keepLongStdio: true
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Cleaning up workspace...'
+            // Archive test results as artifacts
+            archiveArtifacts artifacts: '**/TestResults/*.trx', allowEmptyArchive: true, fingerprint: true
+            
+            // Clean up workspace
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+            echo 'All tests passed.'
+        }
+        failure {
+            echo 'Pipeline failed!'
+            echo 'Check the test results for details.'
+        }
+    }
+}

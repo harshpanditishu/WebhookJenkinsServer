@@ -3,10 +3,10 @@ pipeline {
         dockerfile {
             // Build and use custom Dockerfile with cached dependencies
             filename 'Dockerfile'
+            // Additional Docker build arguments for better reliability
+            additionalBuildArgs '--network=host --pull'
             // Reuse Docker image between builds for speed
-            reuseNode true
-            // Mount Docker socket for Docker-in-Docker if needed
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
+            reuseNode false
         }
     }
     
@@ -66,14 +66,20 @@ pipeline {
     
     post {
         always {
-            echo 'Archiving Allure results...'
-            // Archive Allure results as artifacts
-            archiveArtifacts artifacts: 'allure-results/**', allowEmptyArchive: true
-            
-            // Publish Allure report
-            allure includeProperties: false,
-                   jdk: '',
-                   results: [[path: 'allure-results']]
+            script {
+                try {
+                    echo 'Archiving Allure results...'
+                    // Archive Allure results as artifacts
+                    archiveArtifacts artifacts: 'allure-results/**', allowEmptyArchive: true
+                    
+                    // Publish Allure report
+                    allure includeProperties: false,
+                           jdk: '',
+                           results: [[path: 'allure-results']]
+                } catch (Exception e) {
+                    echo "Failed to archive artifacts: ${e.message}"
+                }
+            }
         }
         success {
             echo 'Pipeline completed successfully!'

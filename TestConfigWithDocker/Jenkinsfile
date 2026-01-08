@@ -1,12 +1,10 @@
 pipeline {
     agent {
-        dockerfile {
-            // Build and use custom Dockerfile with cached dependencies
-            filename 'Dockerfile'
-            // Additional Docker build arguments for better reliability
-            additionalBuildArgs '--network=host --pull'
-            // Reuse Docker image between builds for speed
-            reuseNode false
+        docker {
+            // Use the pre-pulled .NET SDK image directly
+            image 'mcr.microsoft.com/dotnet/sdk:8.0'
+            // Don't pull on every run - use cached image
+            args '-u root:root'
         }
     }
     
@@ -23,25 +21,34 @@ pipeline {
             }
         }
         
-        stage('Verify Environment') {
+        stage('Install Allure') {
             steps {
-                echo 'Verifying Docker container environment...'
+                echo 'Installing Allure commandline tool...'
                 sh '''
-                    echo "=== .NET SDK Version ==="
-                    dotnet --version
-                    echo "=== Allure Version ==="
+                    apt-get update
+                    apt-get install -y wget default-jre
+                    if [ ! -f /usr/bin/allure ]; then
+                        wget -q https://github.com/allure-framework/allure2/releases/download/2.24.1/allure-2.24.1.tgz
+                        tar -zxf allure-2.24.1.tgz -C /opt/
+                        ln -s /opt/allure-2.24.1/bin/allure /usr/bin/allure
+                        rm allure-2.24.1.tgz
+                    fi
                     allure --version
-                    echo "=== Working Directory ==="
-                    pwd
-                    ls -la
                 '''
+            }
+        }
+        
+        stage('Restore Dependencies') {
+            steps {
+                echo 'Restoring NuGet packages...'
+                sh 'dotnet restore StudentGradeApp.Tests/StudentGradeApp.Tests.csproj'
             }
         }
         
         stage('Build Tests') {
             steps {
-                echo 'Building test project (dependencies already cached in Docker image)...'
-                sh 'dotnet build StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release'
+                echo 'Building test project...'
+                sh 'dotnet build StudentGradeApp.Tests/StudentGradeApp.Tests.csproj --configuration Release --no-restore'
             }
         }
         
@@ -69,10 +76,8 @@ pipeline {
             script {
                 try {
                     echo 'Archiving Allure results...'
-                    // Archive Allure results as artifacts
                     archiveArtifacts artifacts: 'allure-results/**', allowEmptyArchive: true
                     
-                    // Publish Allure report
                     allure includeProperties: false,
                            jdk: '',
                            results: [[path: 'allure-results']]
@@ -87,7 +92,7 @@ pipeline {
         }
         failure {
             echo 'Pipeline failed!'
-            echo 'Check Allure report for test details.'
+            echo 'Check console output and Allure report for details.'
         }
     }
 }

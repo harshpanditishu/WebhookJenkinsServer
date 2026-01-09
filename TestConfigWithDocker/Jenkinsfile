@@ -1,9 +1,9 @@
 pipeline {
     agent {
         docker {
-            // Use the pre-pulled .NET SDK image directly
-            image 'mcr.microsoft.com/dotnet/sdk:8.0'
-            // Don't pull on every run - use cached image
+            // Use pre-built image with Allure already installed
+            image 'dotnet-sdk-allure:8.0'
+            // Don't pull - use local image
             args '-u root:root'
         }
     }
@@ -21,18 +21,13 @@ pipeline {
             }
         }
         
-        stage('Install Allure') {
+        stage('Verify Environment') {
             steps {
-                echo 'Installing Allure commandline tool...'
+                echo 'Verifying Docker container environment...'
                 sh '''
-                    apt-get update
-                    apt-get install -y wget default-jre
-                    if [ ! -f /usr/bin/allure ]; then
-                        wget -q https://github.com/allure-framework/allure2/releases/download/2.24.1/allure-2.24.1.tgz
-                        tar -zxf allure-2.24.1.tgz -C /opt/
-                        ln -s /opt/allure-2.24.1/bin/allure /usr/bin/allure
-                        rm allure-2.24.1.tgz
-                    fi
+                    echo "=== .NET SDK Version ==="
+                    dotnet --version
+                    echo "=== Allure Version ==="
                     allure --version
                 '''
             }
